@@ -1,8 +1,8 @@
 use kay::{ActorSystem, World, Actor};
-use util::random::{seed, Rng};
+use cb_util::random::{seed, Rng};
 
-use time::{TimeOfDay, TimeOfDayRange, Instant, Duration, Ticks, TimeID, Temporal,
-TemporalID};
+use cb_time::actors::{Temporal, TemporalID, TimeID};
+use cb_time::units::{TimeOfDay, TimeOfDayRange, Instant, Duration, Ticks};
 use economy::resources::Resource;
 use economy::resources::Resource::*;
 use economy::market::{Deal, EvaluationRequester, EvaluationRequesterID, EvaluatedSearchResult};
@@ -60,7 +60,7 @@ impl Family {
     }
 }
 
-use time::{Sleeper, SleeperID};
+use cb_time::actors::{Sleeper, SleeperID};
 
 impl Sleeper for Family {
     fn wake(&mut self, current_instant: Instant, world: &mut World) {
@@ -159,8 +159,8 @@ impl Household for Family {
             Satiety, //Entertainment,
             Money,
             Groceries,
-            /* Furniture, */
-            /*Clothes,
+            /* Furniture,
+             *Clothes,
              *Devices,
              *Services, */
         ]

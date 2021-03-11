@@ -2,12 +2,12 @@ use kay::{ActorSystem, Fate, World, Actor};
 use compact::{CVec, CDict};
 use super::resources::{Inventory, Entry, Resource, ResourceAmount};
 use super::households::OfferID;
-use time::{TimeOfDayRange, Duration, Instant};
+use cb_time::units::{TimeOfDayRange, Duration, Instant};
 use transport::pathfinding::{RoughLocationID, LocationRequesterID};
-use log::warn;
+use cb_util::log::warn;
 const LOG_T: &str = "Market";
 
-#[derive(Compact, Clone, Serialize, Deserialize)]
+#[derive(Compact, Clone, Debug, Serialize, Deserialize)]
 pub struct Deal {
     pub duration: Duration,
     pub delta: Inventory,
@@ -87,7 +87,7 @@ impl Market {
     }
 }
 
-#[derive(Compact, Clone, Serialize, Deserialize)]
+#[derive(Compact, Clone, Debug, Serialize, Deserialize)]
 pub struct EvaluatedDeal {
     pub offer: OfferID,
     pub deal: Deal,

@@ -1,18 +1,21 @@
 use kay::{World, Fate, ActorSystem};
 use compact::CVec;
-use descartes::{N, P2, V2, Area, WithUniqueOrthogonal, ClosedLinePath, LinePath,
-AreaError, AreaEmbedding, AreaFilter};
+use descartes::{
+    N, P2, V2, Area, WithUniqueOrthogonal, ClosedLinePath, LinePath, AreaError, AreaEmbedding,
+    AreaFilter,
+};
 use ordered_float::OrderedFloat;
 
 use land_use::zone_planning::{Lot, BuildingIntent};
 use land_use::buildings::BuildingStyle;
 use land_use::buildings::architecture::ideal_lot_shape;
 use economy::immigration_and_development::DevelopmentManagerID;
-use itertools::{Itertools, MinMaxResult};
+use itertools::Itertools;
 
-use construction::{ConstructionID, Constructable, ConstructableID};
-use planning::{Prototype, PrototypeID};
-use log::{debug, error};
+use cb_planning::construction::{Constructable, ConstructableID};
+use cb_planning::{Prototype, PrototypeID};
+use planning::{CBConstructionID, CBPrototypeKind};
+use cb_util::log::{debug, error};
 const LOG_T: &str = "Vacant Lots";
 
 #[derive(Compact, Clone)]
@@ -43,31 +46,26 @@ impl Lot {
                 let depth_direction = direction;
                 let width_direction = depth_direction.orthogonal_right();
 
-                let depth = if let MinMaxResult::MinMax(front, back) = midpoints
+                let depth = midpoints
                     .iter()
                     .map(|midpoint| OrderedFloat((*midpoint - point).dot(&depth_direction)))
                     .minmax()
-                {
-                    *back - *front
-                } else {
-                    0.0
-                };
+                    .into_option()
+                    .map_or(0.0, |(front, back)| *back - *front);
 
-                let width = if let MinMaxResult::MinMax(left, right) = midpoints
+                let width = midpoints
                     .iter()
                     .map(|midpoint| OrderedFloat((*midpoint - point).dot(&width_direction)))
                     .minmax()
-                {
-                    *right - *left
-                } else {
-                    0.0
-                };
+                    .into_option()
+                    .map_or(0.0, |(left, right)| *right - *left);
 
                 (point, direction, width, depth)
             })
             .collect()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn split_for(
         &self,
         building_style: BuildingStyle,
@@ -89,7 +87,7 @@ impl Lot {
                 building_style,
                 self.road_boundaries
                     .iter()
-                    .map(|path| path.length())
+                    .map(LinePath::length)
                     .collect::<Vec<_>>(),
             ),
             log_as,
@@ -311,9 +309,9 @@ impl VacantLot {
     ) {
         if self
             .lot
-            .land_uses
+            .zone_configs
             .iter()
-            .any(|land_use| building_style.can_appear_in(*land_use))
+            .any(|intent| building_style.can_appear_in(intent.land_use))
         {
             debug(LOG_T, "Trying suggest", self.id, world);
             match self.lot.split_for(
@@ -340,12 +338,17 @@ impl VacantLot {
     }
 }
 
-impl Constructable for VacantLot {
-    fn morph(&mut self, _: &Prototype, _report_to: ConstructionID, _world: &mut World) {
+impl Constructable<CBPrototypeKind> for VacantLot {
+    fn morph(
+        &mut self,
+        _: &Prototype<CBPrototypeKind>,
+        _report_to: CBConstructionID,
+        _world: &mut World,
+    ) {
         unreachable!()
     }
 
-    fn destruct(&mut self, report_to: ConstructionID, world: &mut World) -> Fate {
+    fn destruct(&mut self, report_to: CBConstructionID, world: &mut World) -> Fate {
         report_to.action_done(self.id.into(), world);
         Fate::Die
     }

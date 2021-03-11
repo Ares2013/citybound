@@ -19,6 +19,10 @@ extern crate compact_macros;
 extern crate cb_simulation;
 use cb_simulation::*;
 
+extern crate cb_util;
+extern crate cb_time;
+extern crate cb_planning;
+
 use std::panic;
 
 pub mod planning_browser;
@@ -35,7 +39,11 @@ static mut SYSTEM: *mut ActorSystem = 0 as *mut ActorSystem;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
 pub fn start() {
-    panic::set_hook(Box::new(|info| console!(error, info.to_string())));
+    panic::set_hook(Box::new(|info| {
+        js! {
+            throw new Error("Rust WASM error: " + @{info.to_string()});
+        }
+    }));
 
     js! { console.log("Before setup") }
 
@@ -53,7 +61,6 @@ pub fn start() {
         .unwrap(),
     );
 
-    use stdweb::serde::Serde;
     use stdweb::unstable::TryFrom;
 
     let mut system = kay::ActorSystem::new(kay::Networking::new(
@@ -62,7 +69,7 @@ pub fn start() {
         u32::try_from(network_settings.remove("batchMessageBytes").unwrap()).unwrap() as usize,
         u32::try_from(network_settings.remove("acceptableTurnDistance").unwrap()).unwrap() as usize,
         u32::try_from(network_settings.remove("skipTurnsPerTurnAhead").unwrap()).unwrap() as usize,
-    ));
+    ), kay::Tuning::default());
 
     setup_common(&mut system);
     debug::setup(&mut system);
@@ -120,8 +127,6 @@ impl MainLoop {
             system.networking_send_and_receive();
             system.process_all_messages();
         }
-
-        use ::stdweb::serde::Serde;
 
         js! {
             window.cbReactApp.boundSetState(oldState => update(oldState, {

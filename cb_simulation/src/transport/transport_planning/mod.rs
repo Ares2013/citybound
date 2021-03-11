@@ -1,28 +1,38 @@
 use compact::{CHashMap, CVec};
-use descartes::{N, P2, V2, Band, LinePath, ClosedLinePath, Area, Intersect, WithUniqueOrthogonal,
-RoughEq, PointContainer, AreaError, ArcOrLineSegment, Segment, AreaEmbedding, AreaFilter};
+use descartes::{
+    N, P2, V2, EditArcLinePath, Band, LinePath, ClosedLinePath, Area, Intersect,
+    WithUniqueOrthogonal, RoughEq, PointContainer, AreaError, ArcOrLineSegment, Segment,
+    AreaEmbedding, AreaFilter, ResolutionStrategy, Closedness, VecLike, Corner
+};
 use ordered_float::OrderedFloat;
 
-use planning::{VersionedGesture, StepID, PrototypeID, PlanHistory, PlanResult,
-GestureIntent, Prototype, PrototypeKind, GestureID};
+use cb_planning::{
+    VersionedGesture, StepID, PrototypeID, PlanHistory, PlanResult, Prototype, GestureID,
+};
+use planning::{CBPrototypeKind, CBGestureIntent};
 
 mod intersection_connections;
 pub mod smooth_path;
-use dimensions::{LANE_DISTANCE, CENTER_LANE_DISTANCE, MIN_SWITCHING_LANE_LENGTH,
-SWITCHING_LANE_OVERLAP_TOLERANCE};
+use dimensions::{
+    LANE_DISTANCE, CENTER_LANE_DISTANCE, MIN_SWITCHING_LANE_LENGTH,
+    SWITCHING_LANE_OVERLAP_TOLERANCE,
+};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-pub struct RoadIntent {
+pub struct RoadLaneConfig {
     pub n_lanes_forward: u8,
     pub n_lanes_backward: u8,
 }
 
+#[derive(Compact, Clone, Debug, Serialize, Deserialize)]
+pub struct RoadIntent {
+    pub path: EditArcLinePath,
+    pub lane_config: RoadLaneConfig,
+}
+
 impl RoadIntent {
-    pub fn new(n_lanes_forward: u8, n_lanes_backward: u8) -> Self {
-        RoadIntent {
-            n_lanes_forward,
-            n_lanes_backward,
-        }
+    pub fn new<V: Into<VecLike<Corner>>>(corners: V, lane_config: RoadLaneConfig) -> Self {
+        RoadIntent { path: EditArcLinePath::new(corners, ResolutionStrategy::AssumeSmooth, Closedness::NeverClosed), lane_config }
     }
 }
 
@@ -152,20 +162,20 @@ pub fn simplify_road_path(points: CVec<P2>) -> CVec<P2> {
 }
 
 pub fn gesture_intent_smooth_paths(
-    history: &PlanHistory,
-) -> Vec<(GestureID, StepID, RoadIntent, LinePath)> {
+    history: &PlanHistory<CBGestureIntent>,
+) -> Vec<(GestureID, StepID, RoadLaneConfig, LinePath)> {
     history
         .gestures
         .pairs()
         .filter_map(
             |(gesture_id, VersionedGesture(gesture, step_id))| match gesture.intent {
-                GestureIntent::Road(ref road_intent) if gesture.points.len() >= 2 => {
-                    smooth_path::smooth_path_from(&gesture.points).map(|path| {
+                CBGestureIntent::Road(ref road_intent) => {
+                    road_intent.path.resolve().0.map(|arc_line_path| {
                         (
                             *gesture_id,
                             *step_id,
-                            *road_intent,
-                            path.to_line_path_with_max_angle(0.12),
+                            road_intent.lane_config,
+                            arc_line_path.to_line_path_with_max_angle(0.12),
                         )
                     })
                 }
@@ -175,11 +185,11 @@ pub fn gesture_intent_smooth_paths(
         .collect::<Vec<_>>()
 }
 
-#[allow(clippy::cyclomatic_complexity)]
+#[allow(clippy::cognitive_complexity)]
 pub fn calculate_prototypes(
-    history: &PlanHistory,
-    _current_result: &PlanResult,
-) -> Result<Vec<Prototype>, AreaError> {
+    history: &PlanHistory<CBGestureIntent>,
+    _current_result: &PlanResult<CBPrototypeKind>,
+) -> Result<Vec<Prototype<CBPrototypeKind>>, AreaError> {
     let gesture_intent_smooth_paths = gesture_intent_smooth_paths(history);
 
     let gesture_areas_for_intersection = gesture_intent_smooth_paths
@@ -288,7 +298,7 @@ pub fn calculate_prototypes(
             ]);
             Prototype {
                 representative_position: area.primitives[0].boundary.path().points[0],
-                kind: PrototypeKind::Road(RoadPrototype::Intersection(IntersectionPrototype {
+                kind: CBPrototypeKind::Road(RoadPrototype::Intersection(IntersectionPrototype {
                     area,
                     incoming: CHashMap::new(),
                     outgoing: CHashMap::new(),
@@ -345,7 +355,7 @@ pub fn calculate_prototypes(
                 let mut end_influence = lane_influence_id;
                 let mut cuts = Vec::new();
 
-                use ::planning::PrototypeKind::Road;
+                use planning::CBPrototypeKind::Road;
 
                 for prototype in &mut intersection_prototypes {
                     if let Prototype {
@@ -517,7 +527,7 @@ pub fn calculate_prototypes(
     };
 
     for prototype in &mut intersection_prototypes {
-        if let PrototypeKind::Road(RoadPrototype::Intersection(ref mut intersection)) =
+        if let CBPrototypeKind::Road(RoadPrototype::Intersection(ref mut intersection)) =
             prototype.kind
         {
             intersection_connections::create_connecting_lanes(intersection);
@@ -533,7 +543,7 @@ pub fn calculate_prototypes(
                 .into_iter()
                 .map(|(path, id)| Prototype {
                     representative_position: path.points[0],
-                    kind: PrototypeKind::Road(RoadPrototype::Lane(LanePrototype(
+                    kind: CBPrototypeKind::Road(RoadPrototype::Lane(LanePrototype(
                         path,
                         CVec::new(),
                     ))),
@@ -542,7 +552,7 @@ pub fn calculate_prototypes(
         )
         .chain(switch_lane_paths.map(|(path, id)| Prototype {
             representative_position: path.points[0],
-            kind: PrototypeKind::Road(RoadPrototype::SwitchLane(SwitchLanePrototype(path))),
+            kind: CBPrototypeKind::Road(RoadPrototype::SwitchLane(SwitchLanePrototype(path))),
             id,
         }))
         .chain(
@@ -550,7 +560,7 @@ pub fn calculate_prototypes(
                 .into_iter()
                 .map(|(area, gesture_id, step_id)| Prototype {
                     representative_position: area.primitives[0].boundary.path().points[0],
-                    kind: PrototypeKind::Road(RoadPrototype::PavedArea(area)),
+                    kind: CBPrototypeKind::Road(RoadPrototype::PavedArea(area)),
                     id: PrototypeID::from_influences((gesture_id, step_id)),
                 }),
         )

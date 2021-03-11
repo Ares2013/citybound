@@ -18,10 +18,29 @@ impl Actor for BrowserLandUseUI {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)] #[serde(transparent)]
+#[derive(Serialize, Deserialize)] #[serde(transparent)]
 pub struct BrowserLandUseUIID {
     _raw_id: RawID
 }
+
+impl Copy for BrowserLandUseUIID {}
+impl Clone for BrowserLandUseUIID { fn clone(&self) -> Self { *self } }
+impl ::std::fmt::Debug for BrowserLandUseUIID {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "BrowserLandUseUIID({:?})", self._raw_id)
+    }
+}
+impl ::std::hash::Hash for BrowserLandUseUIID {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self._raw_id.hash(state);
+    }
+}
+impl PartialEq for BrowserLandUseUIID {
+    fn eq(&self, other: &BrowserLandUseUIID) -> bool {
+        self._raw_id == other._raw_id
+    }
+}
+impl Eq for BrowserLandUseUIID {}
 
 impl TypedID for BrowserLandUseUIID {
     type Target = BrowserLandUseUI;
@@ -47,6 +66,12 @@ impl BrowserLandUseUIID {
 #[derive(Copy, Clone)] #[allow(non_camel_case_types)]
 struct MSG_BrowserLandUseUI_spawn(pub BrowserLandUseUIID, );
 
+impl Into<ConfigUserID<ArchitectureRule>> for BrowserLandUseUIID {
+    fn into(self) -> ConfigUserID<ArchitectureRule> {
+        ConfigUserID::from_raw(self.as_raw())
+    }
+}
+
 impl Into<LandUseUIID> for BrowserLandUseUIID {
     fn into(self) -> LandUseUIID {
         LandUseUIID::from_raw(self.as_raw())
@@ -57,6 +82,7 @@ impl Into<LandUseUIID> for BrowserLandUseUIID {
 #[allow(unused_mut)]
 pub fn auto_setup(system: &mut ActorSystem) {
     
+    ConfigUserID::<ArchitectureRule>::register_implementor::<BrowserLandUseUI>(system);
     LandUseUIID::register_implementor::<BrowserLandUseUI>(system);
     system.add_spawner::<BrowserLandUseUI, _, _>(
         |&MSG_BrowserLandUseUI_spawn(id, ), world| {

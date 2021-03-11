@@ -18,10 +18,29 @@ impl Actor for BrowserPlanningUI {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)] #[serde(transparent)]
+#[derive(Serialize, Deserialize)] #[serde(transparent)]
 pub struct BrowserPlanningUIID {
     _raw_id: RawID
 }
+
+impl Copy for BrowserPlanningUIID {}
+impl Clone for BrowserPlanningUIID { fn clone(&self) -> Self { *self } }
+impl ::std::fmt::Debug for BrowserPlanningUIID {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "BrowserPlanningUIID({:?})", self._raw_id)
+    }
+}
+impl ::std::hash::Hash for BrowserPlanningUIID {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self._raw_id.hash(state);
+    }
+}
+impl PartialEq for BrowserPlanningUIID {
+    fn eq(&self, other: &BrowserPlanningUIID) -> bool {
+        self._raw_id == other._raw_id
+    }
+}
+impl Eq for BrowserPlanningUIID {}
 
 impl TypedID for BrowserPlanningUIID {
     type Target = BrowserPlanningUI;
@@ -53,8 +72,8 @@ impl Into<FrameListenerID> for BrowserPlanningUIID {
     }
 }
 
-impl Into<PlanningUIID> for BrowserPlanningUIID {
-    fn into(self) -> PlanningUIID {
+impl Into<PlanningUIID<CBPlanningLogic>> for BrowserPlanningUIID {
+    fn into(self) -> PlanningUIID<CBPlanningLogic> {
         PlanningUIID::from_raw(self.as_raw())
     }
 }
@@ -64,7 +83,7 @@ impl Into<PlanningUIID> for BrowserPlanningUIID {
 pub fn auto_setup(system: &mut ActorSystem) {
     
     FrameListenerID::register_implementor::<BrowserPlanningUI>(system);
-    PlanningUIID::register_implementor::<BrowserPlanningUI>(system);
+    PlanningUIID::<CBPlanningLogic>::register_implementor::<BrowserPlanningUI>(system);
     system.add_spawner::<BrowserPlanningUI, _, _>(
         |&MSG_BrowserPlanningUI_spawn(id, ), world| {
             BrowserPlanningUI::spawn(id, world)

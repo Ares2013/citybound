@@ -1,9 +1,9 @@
 const util = require('util');
 const { execSync, spawnSync } = require('child_process');
 
-const NIGHTLY_VERSION = "nightly-2018-12-14";
-const NIGHTLY_VERSION_BROWSER = "nightly-2018-12-14";
-const CARGO_WEB_VERSION = "0.6.16";
+const NIGHTLY_VERSION = "nightly-2020-03-10";
+const NIGHTLY_VERSION_BROWSER = "nightly-2020-03-10";
+const CARGO_WEB_VERSION = "0.6.24";
 let quiet = process.argv[2] == "-q";
 
 let rustupV;

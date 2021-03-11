@@ -18,10 +18,29 @@ impl Actor for ImmigrationManager {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)] #[serde(transparent)]
+#[derive(Serialize, Deserialize)] #[serde(transparent)]
 pub struct ImmigrationManagerID {
     _raw_id: RawID
 }
+
+impl Copy for ImmigrationManagerID {}
+impl Clone for ImmigrationManagerID { fn clone(&self) -> Self { *self } }
+impl ::std::fmt::Debug for ImmigrationManagerID {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "ImmigrationManagerID({:?})", self._raw_id)
+    }
+}
+impl ::std::hash::Hash for ImmigrationManagerID {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self._raw_id.hash(state);
+    }
+}
+impl PartialEq for ImmigrationManagerID {
+    fn eq(&self, other: &ImmigrationManagerID) -> bool {
+        self._raw_id == other._raw_id
+    }
+}
+impl Eq for ImmigrationManagerID {}
 
 impl TypedID for ImmigrationManagerID {
     type Target = ImmigrationManager;
@@ -69,10 +88,29 @@ impl Actor for DevelopmentManager {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)] #[serde(transparent)]
+#[derive(Serialize, Deserialize)] #[serde(transparent)]
 pub struct DevelopmentManagerID {
     _raw_id: RawID
 }
+
+impl Copy for DevelopmentManagerID {}
+impl Clone for DevelopmentManagerID { fn clone(&self) -> Self { *self } }
+impl ::std::fmt::Debug for DevelopmentManagerID {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "DevelopmentManagerID({:?})", self._raw_id)
+    }
+}
+impl ::std::hash::Hash for DevelopmentManagerID {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self._raw_id.hash(state);
+    }
+}
+impl PartialEq for DevelopmentManagerID {
+    fn eq(&self, other: &DevelopmentManagerID) -> bool {
+        self._raw_id == other._raw_id
+    }
+}
+impl Eq for DevelopmentManagerID {}
 
 impl TypedID for DevelopmentManagerID {
     type Target = DevelopmentManager;
@@ -87,7 +125,7 @@ impl TypedID for DevelopmentManagerID {
 }
 
 impl DevelopmentManagerID {
-    pub fn spawn(time: TimeID, plan_manager: PlanManagerID, world: &mut World) -> Self {
+    pub fn spawn(time: TimeID, plan_manager: CBPlanManagerID, world: &mut World) -> Self {
         let id = DevelopmentManagerID::from_raw(world.allocate_instance_id::<DevelopmentManager>());
         let swarm = world.local_broadcast::<DevelopmentManager>();
         world.send(swarm, MSG_DevelopmentManager_spawn(id, time, plan_manager));
@@ -104,7 +142,7 @@ impl DevelopmentManagerID {
 }
 
 #[derive(Compact, Clone)] #[allow(non_camel_case_types)]
-struct MSG_DevelopmentManager_spawn(pub DevelopmentManagerID, pub TimeID, pub PlanManagerID);
+struct MSG_DevelopmentManager_spawn(pub DevelopmentManagerID, pub TimeID, pub CBPlanManagerID);
 #[derive(Compact, Clone)] #[allow(non_camel_case_types)]
 struct MSG_DevelopmentManager_try_develop(pub BuildingStyle);
 #[derive(Compact, Clone)] #[allow(non_camel_case_types)]

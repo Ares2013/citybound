@@ -18,10 +18,29 @@ impl Actor for Plant {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)] #[serde(transparent)]
+#[derive(Serialize, Deserialize)] #[serde(transparent)]
 pub struct PlantID {
     _raw_id: RawID
 }
+
+impl Copy for PlantID {}
+impl Clone for PlantID { fn clone(&self) -> Self { *self } }
+impl ::std::fmt::Debug for PlantID {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "PlantID({:?})", self._raw_id)
+    }
+}
+impl ::std::hash::Hash for PlantID {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self._raw_id.hash(state);
+    }
+}
+impl PartialEq for PlantID {
+    fn eq(&self, other: &PlantID) -> bool {
+        self._raw_id == other._raw_id
+    }
+}
+impl Eq for PlantID {}
 
 impl TypedID for PlantID {
     type Target = Plant;
@@ -47,8 +66,8 @@ impl PlantID {
 #[derive(Compact, Clone)] #[allow(non_camel_case_types)]
 struct MSG_Plant_spawn(pub PlantID, pub PlantPrototype);
 
-impl Into<ConstructableID> for PlantID {
-    fn into(self) -> ConstructableID {
+impl Into<ConstructableID<CBPrototypeKind>> for PlantID {
+    fn into(self) -> ConstructableID<CBPrototypeKind> {
         ConstructableID::from_raw(self.as_raw())
     }
 }
@@ -57,7 +76,7 @@ impl Into<ConstructableID> for PlantID {
 #[allow(unused_mut)]
 pub fn auto_setup(system: &mut ActorSystem) {
     
-    ConstructableID::register_implementor::<Plant>(system);
+    ConstructableID::<CBPrototypeKind>::register_implementor::<Plant>(system);
     system.add_spawner::<Plant, _, _>(
         |&MSG_Plant_spawn(id, proto), world| {
             Plant::spawn(id, proto, world)

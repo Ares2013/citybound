@@ -5,10 +5,29 @@ use kay::{ActorSystem, TypedID, RawID, Fate, Actor, TraitIDFrom, ActorOrActorTra
 #[allow(unused_imports)]
 use super::*;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)] #[serde(transparent)]
+#[derive(Serialize, Deserialize)] #[serde(transparent)]
 pub struct TripListenerID {
     _raw_id: RawID
 }
+
+impl Copy for TripListenerID {}
+impl Clone for TripListenerID { fn clone(&self) -> Self { *self } }
+impl ::std::fmt::Debug for TripListenerID {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "TripListenerID({:?})", self._raw_id)
+    }
+}
+impl ::std::hash::Hash for TripListenerID {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self._raw_id.hash(state);
+    }
+}
+impl PartialEq for TripListenerID {
+    fn eq(&self, other: &TripListenerID) -> bool {
+        self._raw_id == other._raw_id
+    }
+}
+impl Eq for TripListenerID {}
 
 pub struct TripListenerRepresentative;
 
@@ -28,7 +47,7 @@ impl TypedID for TripListenerID {
     }
 }
 
-impl<A: Actor + TripListener> TraitIDFrom<A> for TripListenerID {}
+impl<Act: Actor + TripListener> TraitIDFrom<Act> for TripListenerID {}
 
 impl TripListenerID {
     pub fn trip_created(self, trip: TripID, world: &mut World) {
@@ -45,15 +64,15 @@ impl TripListenerID {
         system.register_trait_message::<MSG_TripListener_trip_result>();
     }
 
-    pub fn register_implementor<A: Actor + TripListener>(system: &mut ActorSystem) {
-        system.register_implementor::<A, TripListenerRepresentative>();
-        system.add_handler::<A, _, _>(
+    pub fn register_implementor<Act: Actor + TripListener>(system: &mut ActorSystem) {
+        system.register_implementor::<Act, TripListenerRepresentative>();
+        system.add_handler::<Act, _, _>(
             |&MSG_TripListener_trip_created(trip), instance, world| {
                 instance.trip_created(trip, world); Fate::Live
             }, false
         );
         
-        system.add_handler::<A, _, _>(
+        system.add_handler::<Act, _, _>(
             |&MSG_TripListener_trip_result(trip, result, rough_source, rough_destination), instance, world| {
                 instance.trip_result(trip, result, rough_source, rough_destination, world); Fate::Live
             }, false
@@ -77,10 +96,29 @@ impl Actor for Trip {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)] #[serde(transparent)]
+#[derive(Serialize, Deserialize)] #[serde(transparent)]
 pub struct TripID {
     _raw_id: RawID
 }
+
+impl Copy for TripID {}
+impl Clone for TripID { fn clone(&self) -> Self { *self } }
+impl ::std::fmt::Debug for TripID {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "TripID({:?})", self._raw_id)
+    }
+}
+impl ::std::hash::Hash for TripID {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self._raw_id.hash(state);
+    }
+}
+impl PartialEq for TripID {
+    fn eq(&self, other: &TripID) -> bool {
+        self._raw_id == other._raw_id
+    }
+}
+impl Eq for TripID {}
 
 impl TypedID for TripID {
     type Target = Trip;
@@ -128,10 +166,29 @@ impl Actor for TripCreator {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)] #[serde(transparent)]
+#[derive(Serialize, Deserialize)] #[serde(transparent)]
 pub struct TripCreatorID {
     _raw_id: RawID
 }
+
+impl Copy for TripCreatorID {}
+impl Clone for TripCreatorID { fn clone(&self) -> Self { *self } }
+impl ::std::fmt::Debug for TripCreatorID {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "TripCreatorID({:?})", self._raw_id)
+    }
+}
+impl ::std::hash::Hash for TripCreatorID {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self._raw_id.hash(state);
+    }
+}
+impl PartialEq for TripCreatorID {
+    fn eq(&self, other: &TripCreatorID) -> bool {
+        self._raw_id == other._raw_id
+    }
+}
+impl Eq for TripCreatorID {}
 
 impl TypedID for TripCreatorID {
     type Target = TripCreator;
@@ -191,10 +248,29 @@ impl Actor for FailedTripDebugger {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)] #[serde(transparent)]
+#[derive(Serialize, Deserialize)] #[serde(transparent)]
 pub struct FailedTripDebuggerID {
     _raw_id: RawID
 }
+
+impl Copy for FailedTripDebuggerID {}
+impl Clone for FailedTripDebuggerID { fn clone(&self) -> Self { *self } }
+impl ::std::fmt::Debug for FailedTripDebuggerID {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "FailedTripDebuggerID({:?})", self._raw_id)
+    }
+}
+impl ::std::hash::Hash for FailedTripDebuggerID {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self._raw_id.hash(state);
+    }
+}
+impl PartialEq for FailedTripDebuggerID {
+    fn eq(&self, other: &FailedTripDebuggerID) -> bool {
+        self._raw_id == other._raw_id
+    }
+}
+impl Eq for FailedTripDebuggerID {}
 
 impl TypedID for FailedTripDebuggerID {
     type Target = FailedTripDebugger;

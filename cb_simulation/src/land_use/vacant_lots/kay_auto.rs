@@ -18,10 +18,29 @@ impl Actor for VacantLot {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)] #[serde(transparent)]
+#[derive(Serialize, Deserialize)] #[serde(transparent)]
 pub struct VacantLotID {
     _raw_id: RawID
 }
+
+impl Copy for VacantLotID {}
+impl Clone for VacantLotID { fn clone(&self) -> Self { *self } }
+impl ::std::fmt::Debug for VacantLotID {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "VacantLotID({:?})", self._raw_id)
+    }
+}
+impl ::std::hash::Hash for VacantLotID {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self._raw_id.hash(state);
+    }
+}
+impl PartialEq for VacantLotID {
+    fn eq(&self, other: &VacantLotID) -> bool {
+        self._raw_id == other._raw_id
+    }
+}
+impl Eq for VacantLotID {}
 
 impl TypedID for VacantLotID {
     type Target = VacantLot;
@@ -53,8 +72,8 @@ struct MSG_VacantLot_spawn(pub VacantLotID, pub Lot, pub PrototypeID);
 #[derive(Compact, Clone)] #[allow(non_camel_case_types)]
 struct MSG_VacantLot_suggest_lot(pub BuildingStyle, pub DevelopmentManagerID);
 
-impl Into<ConstructableID> for VacantLotID {
-    fn into(self) -> ConstructableID {
+impl Into<ConstructableID<CBPrototypeKind>> for VacantLotID {
+    fn into(self) -> ConstructableID<CBPrototypeKind> {
         ConstructableID::from_raw(self.as_raw())
     }
 }
@@ -63,7 +82,7 @@ impl Into<ConstructableID> for VacantLotID {
 #[allow(unused_mut)]
 pub fn auto_setup(system: &mut ActorSystem) {
     
-    ConstructableID::register_implementor::<VacantLot>(system);
+    ConstructableID::<CBPrototypeKind>::register_implementor::<VacantLot>(system);
     system.add_spawner::<VacantLot, _, _>(
         |&MSG_VacantLot_spawn(id, ref lot, based_on), world| {
             VacantLot::spawn(id, lot, based_on, world)

@@ -2,12 +2,16 @@ use stdweb::serde::Serde;
 use kay::{World, Actor, External, ActorSystem, TypedID};
 use compact::{CHashMap};
 use std::collections::HashMap;
-use descartes::LinePath;
+use descartes::{LinePath, P2, EditArcLinePath, ResolutionStrategy, Closedness};
 use michelangelo::{MeshGrouper};
-use planning::{ProjectID, Project, GestureID, PrototypeID, PlanHistory, PlanResult,
-PlanHistoryUpdate, ProjectUpdate, PlanResultUpdate, ActionGroups};
-use ::land_use::zone_planning::{LandUse, LAND_USES};
-use planning::ui::{PlanningUI, PlanningUIID};
+use cb_planning::{
+    Project, GestureID, PrototypeID, PlanHistory, PlanResult, PlanHistoryUpdate, ProjectUpdate,
+    PlanResultUpdate, ActionGroups,
+};
+use cb_planning::plan_manager::ProjectID;
+use cb_planning::plan_manager::ui::{PlanningUI, PlanningUIID};
+use planning::{CBPlanningLogic, CBPlanManagerID, CBGestureIntent, CBPrototypeKind};
+use land_use::zone_planning::{LandUse, LAND_USES, ZoneIntent, ZoneConfig};
 use browser_utils::{updated_groups_to_js, to_js_mesh, FrameListener, FrameListenerID};
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
@@ -15,147 +19,119 @@ use stdweb::js_export;
 use SYSTEM;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
-pub fn move_gesture_point(
-    project_id: Serde<::planning::ProjectID>,
-    gesture_id: Serde<::planning::GestureID>,
-    point_idx: u32,
-    new_position: Serde<::descartes::P2>,
-    done_moving: bool,
-) {
-    let system = unsafe { &mut *SYSTEM };
-    let world = &mut system.world();
-    ::planning::PlanManagerID::global_first(world).move_control_point(
-        project_id.0,
-        gesture_id.0,
-        point_idx,
-        new_position.0,
-        done_moving,
-        world,
-    );
-}
-
-#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
 pub fn start_new_gesture(
-    project_id: Serde<::planning::ProjectID>,
-    gesture_id: Serde<::planning::GestureID>,
-    intent: Serde<::planning::GestureIntent>,
-    start: Serde<::descartes::P2>,
+    project_id: Serde<ProjectID>,
+    gesture_id: Serde<GestureID>,
+    intent: Serde<CBGestureIntent>,
 ) {
     let system = unsafe { &mut *SYSTEM };
     let world = &mut system.world();
-    ::planning::PlanManagerID::global_first(world).start_new_gesture(
+    CBPlanManagerID::global_first(world).start_new_gesture(
         project_id.0,
         gesture_id.0,
         intent.0,
-        start.0,
         world,
     )
 }
 
+use descartes::{Corner};
+
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
-pub fn add_control_point(
-    project_id: Serde<::planning::ProjectID>,
-    gesture_id: Serde<::planning::GestureID>,
-    new_point: Serde<::descartes::P2>,
+pub fn with_control_point_added(
+    intent: Serde<CBGestureIntent>,
+    point: Serde<P2>,
     add_to_end: bool,
-    done_adding: bool,
+) -> Serde<CBGestureIntent> {
+    Serde(match intent.0 {
+        CBGestureIntent::Road(road_intent) => CBGestureIntent::Road(RoadIntent {
+            path: road_intent
+                .path
+                .with_corner_added(add_to_end, Corner::new(point.0, None, None)),
+            ..road_intent
+        }),
+        CBGestureIntent::Zone(zone_intent) => CBGestureIntent::Zone(ZoneIntent {
+            boundary: zone_intent
+                .boundary
+                .with_corner_added(add_to_end, Corner::new(point.0, None, None)),
+            ..zone_intent
+        }),
+        other => other,
+    })
+}
+
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
+pub fn set_intent(
+    project_id: Serde<ProjectID>,
+    gesture_id: Serde<GestureID>,
+    intent: Serde<CBGestureIntent>,
+    commit: bool,
 ) {
     let system = unsafe { &mut *SYSTEM };
     let world = &mut system.world();
-    ::planning::PlanManagerID::global_first(world).add_control_point(
+    CBPlanManagerID::global_first(world).set_intent(
         project_id.0,
         gesture_id.0,
-        new_point.0,
-        add_to_end,
-        done_adding,
+        intent.0,
+        commit,
         world,
     )
 }
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
-pub fn insert_control_point(
-    project_id: Serde<::planning::ProjectID>,
-    gesture_id: Serde<::planning::GestureID>,
-    new_point: Serde<::descartes::P2>,
-    done_inserting: bool,
-) {
+pub fn undo(project_id: Serde<ProjectID>) {
     let system = unsafe { &mut *SYSTEM };
     let world = &mut system.world();
-    ::planning::PlanManagerID::global_first(world).insert_control_point(
-        project_id.0,
-        gesture_id.0,
-        new_point.0,
-        done_inserting,
-        world,
-    )
+    CBPlanManagerID::global_first(world).undo(project_id.0, world)
 }
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
-pub fn split_gesture(
-    project_id: Serde<::planning::ProjectID>,
-    gesture_id: Serde<::planning::GestureID>,
-    split_at: Serde<::descartes::P2>,
-    done_inserting: bool,
-) {
+pub fn redo(project_id: Serde<ProjectID>) {
     let system = unsafe { &mut *SYSTEM };
     let world = &mut system.world();
-    ::planning::PlanManagerID::global_first(world).split_gesture(
-        project_id.0,
-        gesture_id.0,
-        split_at.0,
-        done_inserting,
-        world,
-    )
+    CBPlanManagerID::global_first(world).redo(project_id.0, world)
 }
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
-pub fn set_n_lanes(
-    project_id: Serde<::planning::ProjectID>,
-    gesture_id: Serde<::planning::GestureID>,
-    n_lanes_forward: usize,
-    n_lanes_backward: usize,
-    done_changing: bool,
-) {
+pub fn implement_project(project_id: Serde<ProjectID>) {
     let system = unsafe { &mut *SYSTEM };
     let world = &mut system.world();
-    ::planning::PlanManagerID::global_first(world).set_intent(
-        project_id.0,
-        gesture_id.0,
-        ::planning::GestureIntent::Road(::transport::transport_planning::RoadIntent {
+    CBPlanManagerID::global_first(world).implement(project_id.0, world);
+}
+
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
+pub fn start_new_project(project_id: Serde<ProjectID>) {
+    let system = unsafe { &mut *SYSTEM };
+    let world = &mut system.world();
+    CBPlanManagerID::global_first(world).start_new_project(project_id.0, world);
+}
+
+use transport::transport_planning::{RoadIntent, RoadLaneConfig};
+
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
+pub fn new_road_intent(n_lanes_forward: usize, n_lanes_backward: usize) -> Serde<RoadIntent> {
+    Serde(RoadIntent::new(
+        vec![],
+        RoadLaneConfig {
             n_lanes_forward: n_lanes_forward as u8,
             n_lanes_backward: n_lanes_backward as u8,
-        }),
-        done_changing,
-        world,
-    )
+        },
+    ))
 }
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
-pub fn undo(project_id: Serde<::planning::ProjectID>) {
-    let system = unsafe { &mut *SYSTEM };
-    let world = &mut system.world();
-    ::planning::PlanManagerID::global_first(world).undo(project_id.0, world)
-}
-
-#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
-pub fn redo(project_id: Serde<::planning::ProjectID>) {
-    let system = unsafe { &mut *SYSTEM };
-    let world = &mut system.world();
-    ::planning::PlanManagerID::global_first(world).redo(project_id.0, world)
-}
-
-#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
-pub fn implement_project(project_id: Serde<::planning::ProjectID>) {
-    let system = unsafe { &mut *SYSTEM };
-    let world = &mut system.world();
-    ::planning::PlanManagerID::global_first(world).implement(project_id.0, world);
-}
-
-#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), js_export)]
-pub fn start_new_project(project_id: Serde<::planning::ProjectID>) {
-    let system = unsafe { &mut *SYSTEM };
-    let world = &mut system.world();
-    ::planning::PlanManagerID::global_first(world).start_new_project(project_id.0, world);
+pub fn new_zone_intent(new_land_use: Serde<LandUse>) -> Serde<ZoneIntent> {
+    Serde(ZoneIntent {
+        boundary: EditArcLinePath::new(
+            vec![],
+            ResolutionStrategy::AssumeLines,
+            Closedness::AlwaysClosed,
+        ),
+        config: ZoneConfig {
+            land_use: new_land_use.0,
+            max_height: None,
+            set_back: None,
+        },
+    })
 }
 
 #[derive(Compact, Clone)]
@@ -180,9 +156,9 @@ impl ::std::ops::DerefMut for BrowserPlanningUI {
 
 pub struct BrowserPlanningUINonPersistedState {
     // TODO: replace these with only known states and store them in JS only
-    master_plan: PlanHistory,
-    projects: HashMap<ProjectID, Project>,
-    result_preview: PlanResult,
+    master_plan: PlanHistory<CBGestureIntent>,
+    projects: HashMap<ProjectID, Project<CBGestureIntent>>,
+    result_preview: PlanResult<CBPrototypeKind>,
     actions_preview: ActionGroups,
     awaiting_preview_update: bool,
 
@@ -195,7 +171,7 @@ pub struct BrowserPlanningUINonPersistedState {
     building_outlines_grouper: MeshGrouper<PrototypeID>,
 }
 
-use descartes::{P2, ArcLinePath};
+use descartes::ArcLinePath;
 use michelangelo::{Mesh};
 use dimensions::CONTROL_POINT_HANDLE_RADIUS;
 
@@ -244,10 +220,10 @@ impl BrowserPlanningUI {
         BrowserPlanningUI {
             id,
             state: External::new(BrowserPlanningUINonPersistedState {
-                master_plan: ::planning::PlanHistory::new(),
+                master_plan: PlanHistory::new(),
                 projects: HashMap::new(),
-                result_preview: ::planning::PlanResult::new(),
-                actions_preview: ::planning::ActionGroups::new(),
+                result_preview: PlanResult::new(),
+                actions_preview: ActionGroups::new(),
                 awaiting_preview_update: false,
                 lanes_to_construct_grouper: MeshGrouper::new(2000),
                 lanes_to_construct_marker_grouper: MeshGrouper::new(2000),
@@ -268,9 +244,9 @@ impl BrowserPlanningUI {
 
 impl FrameListener for BrowserPlanningUI {
     fn on_frame(&mut self, world: &mut World) {
-        use ::stdweb::unstable::TryInto;
+        use stdweb::unstable::TryInto;
 
-        ::planning::PlanManagerID::global_first(world).get_all_plans(
+        CBPlanManagerID::global_first(world).get_all_plans(
             self.id_as(),
             self.master_plan.as_known_state(),
             self.projects
@@ -287,7 +263,7 @@ impl FrameListener for BrowserPlanningUI {
         .try_into();
         if let Ok(Serde(current_project_id)) = maybe_current_project_id {
             if !self.awaiting_preview_update {
-                ::planning::PlanManagerID::global_first(world).get_project_preview_update(
+                CBPlanManagerID::global_first(world).get_project_preview_update(
                     self.id_as(),
                     current_project_id,
                     self.result_preview.as_known_state(),
@@ -299,11 +275,11 @@ impl FrameListener for BrowserPlanningUI {
     }
 }
 
-impl PlanningUI for BrowserPlanningUI {
+impl PlanningUI<CBPlanningLogic> for BrowserPlanningUI {
     fn on_plans_update(
         &mut self,
-        master_update: &PlanHistoryUpdate,
-        project_updates: &CHashMap<ProjectID, ProjectUpdate>,
+        master_update: &PlanHistoryUpdate<CBGestureIntent>,
+        project_updates: &CHashMap<ProjectID, ProjectUpdate<CBGestureIntent>>,
         _world: &mut World,
     ) {
         if !master_update.is_empty() {
@@ -371,17 +347,16 @@ impl PlanningUI for BrowserPlanningUI {
     fn on_project_preview_update(
         &mut self,
         _project_id: ProjectID,
-        effective_history: &PlanHistory,
-        result_update: &PlanResultUpdate,
+        effective_history: &PlanHistory<CBGestureIntent>,
+        result_update: &PlanResultUpdate<CBPrototypeKind>,
         new_actions: &ActionGroups,
         _world: &mut World,
     ) {
-        use ::planning::PrototypeKind;
-        use ::transport::transport_planning::{RoadPrototype, LanePrototype,
-SwitchLanePrototype, IntersectionPrototype};
-        use ::transport::ui::{lane_mesh, marker_mesh, switch_marker_gap_mesh};
-        use ::land_use::zone_planning::{LotPrototype, LotOccupancy};
-        use ::michelangelo::Mesh;
+        use transport::transport_planning::{
+            RoadPrototype, LanePrototype, SwitchLanePrototype, IntersectionPrototype,
+        };
+        use transport::ui::{lane_mesh, marker_mesh, switch_marker_gap_mesh};
+        use land_use::zone_planning::{LotPrototype, LotOccupancy};
 
         let mut lanes_to_construct_add = Vec::new();
         let mut lanes_to_construct_rem = Vec::new();
@@ -422,38 +397,39 @@ SwitchLanePrototype, IntersectionPrototype};
 
             let corresponding_action = self.actions_preview.corresponding_action(*prototype_id);
             match prototype.kind {
-                PrototypeKind::Road(RoadPrototype::Lane(_)) => match corresponding_action {
+                CBPrototypeKind::Road(RoadPrototype::Lane(_)) => match corresponding_action {
                     Some(ref action) if action.is_construct() => {
                         lanes_to_construct_rem.push(*prototype_id);
                         lanes_to_construct_marker_rem.push(*prototype_id);
                     }
                     _ => {}
                 },
-                PrototypeKind::Road(RoadPrototype::SwitchLane(_)) => match corresponding_action {
+                CBPrototypeKind::Road(RoadPrototype::SwitchLane(_)) => match corresponding_action {
                     Some(ref action) if action.is_construct() => {
                         lanes_to_construct_marker_gaps_rem.push(*prototype_id);
                     }
                     _ => {}
                 },
-                PrototypeKind::Road(RoadPrototype::Intersection(_)) => match corresponding_action {
+                CBPrototypeKind::Road(RoadPrototype::Intersection(_)) => match corresponding_action
+                {
                     Some(ref action) if action.is_construct() => {
                         lanes_to_construct_rem.push(*prototype_id);
                     }
                     _ => {}
                 },
-                PrototypeKind::Lot(LotPrototype {
+                CBPrototypeKind::Lot(LotPrototype {
                     ref lot, occupancy, ..
                 }) => {
                     if let LotOccupancy::Occupied(_) = occupancy {
                         building_outlines_rem.push(*prototype_id)
                     }
-                    for land_use in &lot.land_uses {
+                    for config in &lot.zone_configs {
                         zones_rem
-                            .get_mut(land_use)
+                            .get_mut(&config.land_use)
                             .expect("Should have land use to update removes")
                             .push(*prototype_id);
                         zone_outlines_rem
-                            .get_mut(land_use)
+                            .get_mut(&config.land_use)
                             .expect("Should have land use to update removes")
                             .push(*prototype_id);
                     }
@@ -465,7 +441,7 @@ SwitchLanePrototype, IntersectionPrototype};
         for new_prototype in &result_update.new_prototypes {
             let corresponding_action = new_actions.corresponding_action(new_prototype.id);
             match new_prototype.kind {
-                PrototypeKind::Road(RoadPrototype::Lane(LanePrototype(ref lane_path, _))) => {
+                CBPrototypeKind::Road(RoadPrototype::Lane(LanePrototype(ref lane_path, _))) => {
                     match corresponding_action {
                         Some(ref action) if action.is_construct() => {
                             lanes_to_construct_add.push((new_prototype.id, lane_mesh(lane_path)));
@@ -476,7 +452,7 @@ SwitchLanePrototype, IntersectionPrototype};
                         _ => {}
                     }
                 }
-                PrototypeKind::Road(RoadPrototype::SwitchLane(SwitchLanePrototype(
+                CBPrototypeKind::Road(RoadPrototype::SwitchLane(SwitchLanePrototype(
                     ref lane_path,
                 ))) => match corresponding_action {
                     Some(ref action) if action.is_construct() => {
@@ -485,7 +461,7 @@ SwitchLanePrototype, IntersectionPrototype};
                     }
                     _ => {}
                 },
-                PrototypeKind::Road(RoadPrototype::Intersection(IntersectionPrototype {
+                CBPrototypeKind::Road(RoadPrototype::Intersection(IntersectionPrototype {
                     ref connecting_lanes,
                     ..
                 })) => match corresponding_action {
@@ -500,7 +476,7 @@ SwitchLanePrototype, IntersectionPrototype};
                     }
                     _ => {}
                 },
-                PrototypeKind::Lot(LotPrototype {
+                CBPrototypeKind::Lot(LotPrototype {
                     ref lot, occupancy, ..
                 }) => {
                     let mesh = Mesh::from_area(&lot.area);
@@ -519,13 +495,13 @@ SwitchLanePrototype, IntersectionPrototype};
                         );
                         building_outlines_add.push((new_prototype.id, thin_outline_mesh))
                     }
-                    for land_use in &lot.land_uses {
+                    for config in &lot.zone_configs {
                         zones_add
-                            .get_mut(land_use)
+                            .get_mut(&config.land_use)
                             .expect("Should have land use to update adds")
                             .push((new_prototype.id, mesh.clone()));
                         zone_outlines_add
-                            .get_mut(land_use)
+                            .get_mut(&config.land_use)
                             .expect("Should have land use to update adds")
                             .push((new_prototype.id, outline_mesh.clone()));
                     }

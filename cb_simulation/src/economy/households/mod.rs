@@ -1,11 +1,11 @@
 use kay::{ActorSystem, World, Actor, TypedID, Fate};
 use compact::{CVec, CDict, COption};
-use time::{Duration, TimeOfDay, Instant, Ticks, TimeID, TICKS_PER_SIM_SECOND, Sleeper,
-Temporal};
-use util::async_counter::AsyncCounter;
-use util::random::{seed, Rng};
+use cb_time::actors::{TimeID, Sleeper, Temporal};
+use cb_time::units::{Duration, TimeOfDay, Instant, Ticks, TICKS_PER_SIM_SECOND};
+use cb_util::async_counter::AsyncCounter;
+use cb_util::random::{seed, Rng};
 use ordered_float::OrderedFloat;
-use log::{debug, info, warn};
+use cb_util::log::{debug, info, warn};
 const LOG_T: &str = "Households";
 
 pub mod tasks;
@@ -985,14 +985,14 @@ pub enum ResultAspect {
     SetTarget(u32),
 }
 
-#[derive(Compact, Clone, Serialize)]
+#[derive(Compact, Clone, Debug, Serialize)]
 pub struct DecisionResourceEntry {
     results_counter: AsyncCounter,
     best_deal: COption<EvaluatedDeal>,
     best_deal_usefulness: f32,
 }
 
-#[derive(Compact, Clone, Serialize)]
+#[derive(Compact, Clone, Debug, Serialize)]
 pub enum DecisionState {
     None,
     Choosing(
@@ -1004,7 +1004,7 @@ pub enum DecisionState {
     WaitingForTrip(MemberIdx),
 }
 
-#[derive(Compact, Clone, Serialize)]
+#[derive(Compact, Clone, Debug, Serialize)]
 pub struct HouseholdCore {
     pub resources: Inventory,
     pub member_resources: CVec<Inventory>,

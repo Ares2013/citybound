@@ -18,10 +18,29 @@ impl Actor for Building {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)] #[serde(transparent)]
+#[derive(Serialize, Deserialize)] #[serde(transparent)]
 pub struct BuildingID {
     _raw_id: RawID
 }
+
+impl Copy for BuildingID {}
+impl Clone for BuildingID { fn clone(&self) -> Self { *self } }
+impl ::std::fmt::Debug for BuildingID {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "BuildingID({:?})", self._raw_id)
+    }
+}
+impl ::std::hash::Hash for BuildingID {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self._raw_id.hash(state);
+    }
+}
+impl PartialEq for BuildingID {
+    fn eq(&self, other: &BuildingID) -> bool {
+        self._raw_id == other._raw_id
+    }
+}
+impl Eq for BuildingID {}
 
 impl TypedID for BuildingID {
     type Target = Building;
@@ -83,8 +102,8 @@ struct MSG_Building_get_ui_info(pub LandUseUIID);
 #[derive(Compact, Clone)] #[allow(non_camel_case_types)]
 struct MSG_Building_reconnect(pub PreciseLocation, pub P2);
 
-impl Into<ConstructableID> for BuildingID {
-    fn into(self) -> ConstructableID {
+impl Into<ConstructableID<CBPrototypeKind>> for BuildingID {
+    fn into(self) -> ConstructableID<CBPrototypeKind> {
         ConstructableID::from_raw(self.as_raw())
     }
 }
@@ -111,7 +130,7 @@ impl Into<RoughLocationID> for BuildingID {
 #[allow(unused_mut)]
 pub fn auto_setup(system: &mut ActorSystem) {
     
-    ConstructableID::register_implementor::<Building>(system);
+    ConstructableID::<CBPrototypeKind>::register_implementor::<Building>(system);
     AttacheeID::register_implementor::<Building>(system);
     SleeperID::register_implementor::<Building>(system);
     RoughLocationID::register_implementor::<Building>(system);

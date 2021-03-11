@@ -1,7 +1,7 @@
 use compact::CVec;
 use economy::market::Deal;
 use super::{HouseholdID, MemberIdx};
-use time::TimeOfDayRange;
+use cb_time::units::TimeOfDayRange;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct OfferIdx(pub u16);
@@ -12,7 +12,7 @@ pub struct OfferID {
     pub idx: OfferIdx,
 }
 
-#[derive(Compact, Clone, Serialize)]
+#[derive(Compact, Clone, Debug, Serialize)]
 pub struct Offer {
     pub offering_member: MemberIdx,
     pub opening_hours: TimeOfDayRange,

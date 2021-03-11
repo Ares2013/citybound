@@ -8,6 +8,10 @@ extern crate noise;
 extern crate fnv;
 extern crate roaring;
 extern crate uuid;
+extern crate arrayvec;
+extern crate cb_util;
+pub extern crate cb_time;
+extern crate cb_planning;
 
 pub extern crate compact;
 #[macro_use]
@@ -19,12 +23,8 @@ pub extern crate descartes;
 #[macro_use]
 extern crate serde_derive;
 
-pub mod util;
-pub mod log;
-pub mod time;
 pub mod transport;
 pub mod planning;
-pub mod construction;
 pub mod economy;
 pub mod land_use;
 pub mod dimensions;
@@ -32,10 +32,10 @@ pub mod environment;
 
 pub fn setup_common(system: &mut kay::ActorSystem) {
     for setup_fn in &[
-        time::setup,
-        log::setup,
-        planning::setup,
-        construction::setup,
+        cb_time::actors::setup,
+        cb_util::log::setup,
+        cb_planning::plan_manager::setup::<planning::CBPlanningLogic>,
+        cb_planning::construction::setup::<planning::CBPrototypeKind>,
         transport::setup,
         economy::setup,
         land_use::setup,
@@ -43,4 +43,16 @@ pub fn setup_common(system: &mut kay::ActorSystem) {
     ] {
         setup_fn(system)
     }
+}
+
+pub fn spawn_for_server(world: &mut kay::World) -> cb_time::actors::TimeID {
+    cb_util::log::spawn(world);
+    let time = cb_time::actors::spawn(world);
+    let plan_manager = cb_planning::plan_manager::spawn::<planning::CBPlanningLogic>(world);
+    cb_planning::construction::spawn::<planning::CBPrototypeKind>(world);
+    land_use::spawn(world);
+    transport::spawn(world, time);
+    economy::spawn(world, time, plan_manager);
+    environment::vegetation::spawn(world, plan_manager);
+    time
 }

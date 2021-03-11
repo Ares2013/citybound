@@ -1,12 +1,12 @@
 @font-face {
-    font-family: "Clear Sans";
-    src: url("assets/ClearSans-Regular.ttf") format("ttf"),
+    font-family: "Inter UI";
+    src: url("assets/Inter-UI-Regular.woff") format("woff"),
 }
 
 @import "./node_modules/antd/dist/antd.less";
 
 @primary-color: #0048ff;
-@font-family: 'Clear Sans', sans-serif;
+@font-family: 'Inter UI', sans-serif;
 @border-radius-base     : 2px;
 @border-radius-sm       : 1px;
 @padding-lg    : 16px; // containers
@@ -47,7 +47,7 @@ time, mark, audio, video {
 }
 
 body {
-    font-family: 'Clear Sans', sans-serif;
+    font-family: 'Inter UI', sans-serif;
     font-size: 16px;
     line-height: 1.45;
     background-color: #c9e0ab;
@@ -57,10 +57,10 @@ body {
 }
 
 #logo {
-    width: 6rem;
+    width: 6.9rem;
     position: absolute;
     right: 1.25rem;
-    top: 0.5rem;
+    top: -0.1rem;
     opacity: 0.3;
 }
 
@@ -111,7 +111,7 @@ button {
     display: none;
     position: absolute;
     width: 40%;
-    height: 40%;
+    height: 70%;
     right: 1rem;
     bottom: 4.5rem;
     background: #b51717;
@@ -120,7 +120,7 @@ button {
     border-radius: 0.2em;
     z-index: 9999;
     overflow-y: auto;
-    font-size: 0.7em;
+    font-size: 0.8em;
 
     h1, h2 {
         color: #fff;
@@ -160,6 +160,7 @@ button {
 
 .ui2d {
     position: absolute;
+    top: 0;
     width: 100%;
     height: 100%;
     z-index: 3;
@@ -264,6 +265,7 @@ button {
 
 #menu-toolbar {
     margin-left: auto;
+    order: 1000;
 }
 
 #menu .button-icon {
@@ -436,7 +438,7 @@ button {
         background-image: url('./assets/icons/icons8-forest.png');
     }
 
-    #official .button-icon {
+    #administrative .button-icon {
         background-image: url('./assets/icons/icons8-city_hall.png');
     }
 }

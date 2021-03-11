@@ -2,3 +2,5 @@
 target
 cb_last_error.txt
 .version
+city
+node_modules
